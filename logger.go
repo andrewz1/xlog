@@ -47,9 +47,6 @@ var (
 )
 
 func (l *logger) skip(lvl Level) bool {
-	if lvl < 0 { // don't skip noLevel
-		return false
-	}
 	return lvl > l.lvl
 }
 

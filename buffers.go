@@ -56,7 +56,7 @@ func (b *lbuf) addSpaceOpt() {
 func (b *lbuf) putStr(v ...interface{}) {
 	for _, x := range v {
 		b.addSpaceOpt()
-		b.buf = fmt.Appendf(b.buf, "%v", x)
+		b.buf = fmt.Append(b.buf, x)
 	}
 }
 

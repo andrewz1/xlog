@@ -6,14 +6,15 @@ import (
 )
 
 const (
-	noLevel    = Level(-1)
-	DebugLevel = Level(syslog.LOG_DEBUG)
-	InfoLevel  = Level(syslog.LOG_INFO)
-	WarnLevel  = Level(syslog.LOG_WARNING)
-	ErrorLevel = Level(syslog.LOG_ERR)
-	FatalLevel = Level(syslog.LOG_CRIT)
-	PanicLevel = Level(syslog.LOG_EMERG)
-	defLevel   = InfoLevel
+	noLevel Level = iota - 1
+	PanicLevel
+	FatalLevel
+	ErrorLevel
+	WarnLevel
+	InfoLevel
+	DebugLevel
+
+	defLevel = InfoLevel
 )
 
 type Level int
@@ -43,6 +44,14 @@ var (
 		"error":   ErrorLevel,
 		"fatal":   FatalLevel,
 		"panic":   PanicLevel,
+	}
+	lvl2log = map[Level]syslog.Priority{
+		DebugLevel: syslog.LOG_DEBUG,
+		InfoLevel:  syslog.LOG_INFO,
+		WarnLevel:  syslog.LOG_WARNING,
+		ErrorLevel: syslog.LOG_ERR,
+		FatalLevel: syslog.LOG_CRIT,
+		PanicLevel: syslog.LOG_EMERG,
 	}
 )
 

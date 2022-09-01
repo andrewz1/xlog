@@ -1,6 +1,7 @@
 package xlog
 
 import (
+	"fmt"
 	"io"
 	"testing"
 )
@@ -11,6 +12,8 @@ func TestLog(t *testing.T) {
 
 	Infof("test: %v", true)
 	Info("test", true, false, 1.5)
+
+	fmt.Println(true, false, 1.5)
 }
 
 func BenchmarkLog(b *testing.B) {
@@ -18,7 +21,7 @@ func BenchmarkLog(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		Info("test", true, false, 1.5)
+		Info("very long string test:", true, false, 1.5)
 	}
 }
 
