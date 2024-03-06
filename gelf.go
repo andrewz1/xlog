@@ -20,7 +20,6 @@ type gelfData struct {
 	shortMsg string
 	fullMsg  string
 	fld      map[string]string
-	cur      time.Time
 	dur      time.Duration
 	seq      uint64
 	lvl      int // log level
@@ -94,9 +93,8 @@ func (gd *gelfData) setFullMsg(m string) {
 	}
 }
 
-func (gd *gelfData) setTime(cur time.Time, dur time.Duration) {
+func (gd *gelfData) setDuration(dur time.Duration) {
 	if gd != nil {
-		gd.cur = cur
 		gd.dur = dur
 	}
 }
@@ -149,8 +147,13 @@ func gchLog() {
 	}
 }
 
-func (gd *gelfData) getTS() string {
-	ts := gd.cur.UnixMilli()
+//func (gd *gelfData) getTS() string {
+//	ts := gd.cur.UnixMilli()
+//	return fmt.Sprintf("%d.%d", ts/1000, ts%1000)
+//}
+
+func getTS() string {
+	ts := nextTS()
 	return fmt.Sprintf("%d.%d", ts/1000, ts%1000)
 }
 
@@ -176,7 +179,7 @@ func (gd *gelfData) process() {
 	if gd.fullMsg != "" {
 		v.Set("full_message", a.NewString(gd.fullMsg))
 	}
-	v.Set("timestamp", a.NewNumberString(gd.getTS()))
+	v.Set("timestamp", a.NewNumberString(getTS()))
 	v.Set("level", a.NewNumberInt(gd.lvl))
 	for fk, fv := range gd.fld {
 		v.Set(fk, a.NewString(fv))

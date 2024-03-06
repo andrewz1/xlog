@@ -36,7 +36,8 @@ var (
 		Duration: true,
 		lvl:      InfoLevel,
 	}
-	seq atomic.Uint64
+	seq    atomic.Uint64
+	lastTS atomic.Int64
 )
 
 func Init(xc *xtoml.XConf) (err error) {
@@ -49,6 +50,18 @@ func Init(xc *xtoml.XConf) (err error) {
 
 func nextSeq() uint64 {
 	return seq.Add(1)
+}
+
+func nextTS() (rv int64) {
+	rv = time.Now().UnixMilli()
+	defer lastTS.Store(rv)
+	for {
+		if lastTS.Load() != rv {
+			break
+		}
+		rv++
+	}
+	return rv
 }
 
 func logTag() string {
@@ -124,7 +137,6 @@ func msgStdErr(lvl Level, m string) {
 }
 
 func msg(lvl Level, op int, m string, e *Entry) {
-	cur := time.Now()
 	nseq := nextSeq()
 	bb := bufGet()
 	gd := getGelf(lvl, op, m, nseq)
@@ -134,13 +146,10 @@ func msg(lvl Level, op int, m string, e *Entry) {
 	}()
 	bb.setStr(m)
 	var dur time.Duration
-	if e != nil {
-		if opt.Duration {
-			dur = cur.Sub(e.cur)
-		}
-		cur = e.cur
+	if opt.Duration && e != nil {
+		dur = time.Since(e.cur)
+		gd.setDuration(dur)
 	}
-	gd.setTime(cur, dur)
 	if e != nil {
 		for k, v := range e.gfld {
 			gd.addField(k, v)
