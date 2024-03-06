@@ -165,7 +165,11 @@ func (gd *gelfData) process() {
 	v.Set("version", a.NewString("1.1"))
 	v.Set("host", a.NewString(gHost))
 	if gd.shortMsg == "" {
-		v.Set("short_message", a.NewString(noDataMsg))
+		if en, ok := gd.fld["_"+entName]; ok {
+			v.Set("short_message", a.NewString(fmt.Sprintf(entName+"=%s", en)))
+		} else {
+			v.Set("short_message", a.NewString(noDataMsg))
+		}
 	} else {
 		v.Set("short_message", a.NewString(gd.shortMsg))
 	}
