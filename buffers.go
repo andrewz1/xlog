@@ -2,12 +2,13 @@ package xlog
 
 import (
 	"fmt"
-	"os"
 	"sync"
 )
 
 const (
-	defLen = 64
+	defLen   = 64
+	fmtPlain = `%s=%s`
+	fmtQuote = `%s="%s"`
 )
 
 type lbuf struct {
@@ -15,14 +16,12 @@ type lbuf struct {
 }
 
 var (
-	lbp = sync.Pool{
-		New: func() interface{} {
-			return &lbuf{
-				buf: make([]byte, 0, defLen),
-			}
-		},
-	}
+	lbp = sync.Pool{New: newBuf}
 )
+
+func newBuf() any {
+	return &lbuf{buf: make([]byte, 0, defLen)}
+}
 
 func bufGet() *lbuf {
 	return lbp.Get().(*lbuf)
@@ -37,43 +36,64 @@ func (b *lbuf) reset() {
 	b.buf = b.buf[:0]
 }
 
-//func (b *lbuf) Write(p []byte) (n int, err error) {
-//	b.buf = append(b.buf, p...)
-//	return len(p), nil
-//}
-
-func (b *lbuf) addSpaceOpt() {
+func (b *lbuf) lastIsSpace() bool {
 	n := len(b.buf)
 	if n == 0 {
-		return
+		return true
 	}
-	if b.buf[n-1] == ' ' { // last is space
-		return
-	}
-	b.buf = append(b.buf, ' ')
+	return b.buf[n-1] == ' '
 }
 
-func (b *lbuf) putStr(v ...interface{}) {
-	for _, x := range v {
-		b.addSpaceOpt()
-		b.buf = fmt.Append(b.buf, x)
+func (b *lbuf) addSpaceOpt() {
+	if !b.lastIsSpace() {
+		b.buf = append(b.buf, ' ')
 	}
 }
 
-func (b *lbuf) checkFatalPanic(lvl Level) {
-	switch lvl {
-	case FatalLevel:
-		os.Exit(1)
-	case PanicLevel:
-		panic(string(b.buf))
-	}
+func (b *lbuf) putStr(s string) {
+	b.addSpaceOpt()
+	b.buf = append(b.buf, s...)
 }
 
-func (b *lbuf) needQuote() bool {
+func (b *lbuf) putAny(v any) {
+	b.addSpaceOpt()
+	b.buf = fmt.Append(b.buf, v)
+}
+
+func (b *lbuf) setStr(s string) {
+	b.buf = append(b.buf[:0], s...)
+}
+
+func (b *lbuf) setAny(v any) {
+	b.buf = fmt.Append(b.buf[:0], v)
+}
+
+func (b *lbuf) needQuote() bool { // todo utf8
 	for _, v := range b.buf {
 		if v <= ' ' {
 			return true
 		}
 	}
 	return false
+}
+
+func (b *lbuf) String() string {
+	return string(b.buf)
+}
+
+func (b *lbuf) kvString(k string) string {
+	var curFmt string
+	if b.needQuote() {
+		curFmt = fmtQuote
+	} else {
+		curFmt = fmtPlain
+	}
+	return fmt.Sprintf(curFmt, k, b.String())
+}
+
+func (b *lbuf) Write(data []byte) (int, error) {
+	if len(data) > 0 {
+		b.buf = append(b.buf, data...)
+	}
+	return len(data), nil
 }

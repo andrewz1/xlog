@@ -3,73 +3,63 @@ package xlog
 import (
 	"fmt"
 	"log/syslog"
+	"strings"
 )
 
 const (
-	noLevel Level = iota - 1
-	PanicLevel
-	FatalLevel
-	ErrorLevel
-	WarnLevel
-	InfoLevel
-	DebugLevel
-
-	defLevel = InfoLevel
+	noLevel      Level = -1
+	EmergLevel   Level = Level(syslog.LOG_EMERG)
+	AlertLevel   Level = Level(syslog.LOG_ALERT)
+	CritLevel    Level = Level(syslog.LOG_CRIT)
+	ErrLevel     Level = Level(syslog.LOG_ERR)
+	WarningLevel Level = Level(syslog.LOG_WARNING)
+	NoticeLevel  Level = Level(syslog.LOG_NOTICE)
+	InfoLevel    Level = Level(syslog.LOG_INFO)
+	DebugLevel   Level = Level(syslog.LOG_DEBUG)
+	defLevel           = InfoLevel
 )
 
 type Level int
 
 var (
-	lvl2strL = map[Level]string{
-		DebugLevel: "debug",
-		InfoLevel:  "info",
-		WarnLevel:  "warn",
-		ErrorLevel: "error",
-		FatalLevel: "fatal",
-		PanicLevel: "panic",
-	}
-	lvl2strU = map[Level]string{
-		DebugLevel: "DEBUG",
-		InfoLevel:  "INFO",
-		WarnLevel:  "WARN",
-		ErrorLevel: "ERROR",
-		FatalLevel: "FATAL",
-		PanicLevel: "PANIC",
+	lvl2str = map[Level]string{
+		EmergLevel:   "emerg",
+		AlertLevel:   "alert",
+		CritLevel:    "crit",
+		ErrLevel:     "error",
+		WarningLevel: "warn",
+		NoticeLevel:  "notice",
+		InfoLevel:    "info",
+		DebugLevel:   "debug",
 	}
 	str2lvl = map[string]Level{
-		"debug":   DebugLevel,
-		"info":    InfoLevel,
-		"warn":    WarnLevel,
-		"warning": WarnLevel,
-		"error":   ErrorLevel,
-		"fatal":   FatalLevel,
-		"panic":   PanicLevel,
-	}
-	lvl2log = map[Level]syslog.Priority{
-		DebugLevel: syslog.LOG_DEBUG,
-		InfoLevel:  syslog.LOG_INFO,
-		WarnLevel:  syslog.LOG_WARNING,
-		ErrorLevel: syslog.LOG_ERR,
-		FatalLevel: syslog.LOG_CRIT,
-		PanicLevel: syslog.LOG_EMERG,
+		"emerg":  EmergLevel,
+		"alert":  AlertLevel,
+		"crit":   CritLevel,
+		"error":  ErrLevel,
+		"warn":   WarningLevel,
+		"notice": NoticeLevel,
+		"info":   InfoLevel,
+		"debug":  DebugLevel,
 	}
 )
 
 func (l Level) String() string {
-	if str, ok := lvl2strL[l]; ok {
+	if str, ok := lvl2str[l]; ok {
 		return str
 	}
 	return "unknown"
 }
 
-func (l Level) LogString() string {
-	if str, ok := lvl2strU[l]; ok {
-		return str
-	}
-	return "UNKNOWN"
+func (l Level) logString() string {
+	return strings.ToUpper(l.String())
 }
 
-func ParseLevel(lvlStr string) (Level, error) {
+func (l Level) isValid() bool {
+	return l >= EmergLevel && l <= DebugLevel
+}
+
+func parseLevel(lvlStr string) (Level, error) {
 	if lvl, ok := str2lvl[lvlStr]; ok {
 		return lvl, nil
 	}
