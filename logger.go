@@ -54,8 +54,8 @@ package xlog
 //	if l.skip(lvl) || len(v) == 0 {
 //		return
 //	}
-//	b := bufGet()
-//	defer bufPut(b)
+//	b := getBuf()
+//	defer putBuf(b)
 //	if lvl >= PanicLevel {
 //		b.buf = fmt.Appendf(b.buf, "%s", lvl.LogString())
 //	}
@@ -70,8 +70,8 @@ package xlog
 //	if l.skip(lvl) || len(format) == 0 {
 //		return
 //	}
-//	b := bufGet()
-//	defer bufPut(b)
+//	b := getBuf()
+//	defer putBuf(b)
 //	if lvl >= PanicLevel {
 //		b.buf = fmt.Appendf(b.buf, "%s", lvl.LogString())
 //	}

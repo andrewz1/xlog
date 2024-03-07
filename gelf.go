@@ -11,23 +11,24 @@ import (
 )
 
 const (
-	gchLen    = 4096
+	gchLen    = 4096 // chan len
 	noDataMsg = "[empty]"
 	sendTmo   = time.Second / 2
 )
 
 type gelfData struct {
-	shortMsg string
-	fullMsg  string
-	fld      map[string]string
-	dur      time.Duration
-	seq      uint64
-	lvl      int // log level
-	op       int // exit or panic
+	shortMsg string            // short gelf message
+	fullMsg  string            // full gelf message
+	fld      map[string]string // gelf fields with _ prefix
+	cur      time.Time         // creation time
+	dur      time.Duration     // duration
+	seq      uint64            // sequence number
+	lvl      int               // log level
+	op       int               // exit or panic operation
 }
 
 var (
-	gp    = sync.Pool{New: newGelfData}
+	gp    = sync.Pool{New: newGelfDataAny}
 	gCh   chan *gelfData
 	gSock *net.UDPConn
 	gHost string
@@ -43,15 +44,13 @@ func putArena(a *fastjson.Arena) {
 	ap.Put(a)
 }
 
-func newGelfData() any {
+func newGelfDataAny() any {
 	return &gelfData{fld: make(map[string]string)}
 }
 
 func (gd *gelfData) reset() {
 	gd.shortMsg = ""
 	gd.fullMsg = ""
-	gd.dur = 0
-	gd.op = noOp
 	for k := range gd.fld {
 		delete(gd.fld, k)
 	}
@@ -61,12 +60,18 @@ func gelfOk() bool {
 	return gSock != nil
 }
 
-func getGelf(lvl Level, op int, short string, seq uint64) *gelfData {
+func getGelfData(lvl Level, op int, short string, seq uint64, curp *time.Time) *gelfData {
 	if !gelfOk() {
 		return nil
 	}
 	gd := gp.Get().(*gelfData)
 	gd.shortMsg = short
+	gd.cur = time.Now()
+	if opt.Duration && curp != nil {
+		gd.dur = gd.cur.Sub(*curp)
+	} else {
+		gd.dur = 0
+	}
 	gd.seq = seq
 	gd.lvl = int(lvl)
 	gd.op = op
@@ -79,7 +84,7 @@ func (gd *gelfData) send() {
 	}
 }
 
-func putGelf(gd *gelfData) {
+func putGelfData(gd *gelfData) {
 	if gd == nil {
 		return
 	}
@@ -90,12 +95,6 @@ func putGelf(gd *gelfData) {
 func (gd *gelfData) setFullMsg(m string) {
 	if gd != nil {
 		gd.fullMsg = m
-	}
-}
-
-func (gd *gelfData) setDuration(dur time.Duration) {
-	if gd != nil {
-		gd.dur = dur
 	}
 }
 
@@ -136,7 +135,7 @@ func gchLog() {
 		v.process()
 		switch v.op {
 		case noOp:
-			putGelf(v)
+			putGelfData(v)
 		case opFatal:
 			time.Sleep(sendTmo) // for send
 			os.Exit(1)
@@ -147,21 +146,16 @@ func gchLog() {
 	}
 }
 
-//func (gd *gelfData) getTS() string {
-//	ts := gd.cur.UnixMilli()
-//	return fmt.Sprintf("%d.%d", ts/1000, ts%1000)
-//}
-
-func getTS() string {
-	ts := nextTS()
+func (gd *gelfData) getTS() string {
+	ts := gd.cur.UnixMilli()
 	return fmt.Sprintf("%d.%d", ts/1000, ts%1000)
 }
 
 func (gd *gelfData) process() {
 	a := getArena()
-	bb := bufGet()
+	bb := getBuf()
 	defer func() {
-		bufPut(bb)
+		putBuf(bb)
 		putArena(a)
 	}()
 	v := a.NewObject()
@@ -179,7 +173,7 @@ func (gd *gelfData) process() {
 	if gd.fullMsg != "" {
 		v.Set("full_message", a.NewString(gd.fullMsg))
 	}
-	v.Set("timestamp", a.NewNumberString(getTS()))
+	v.Set("timestamp", a.NewNumberString(gd.getTS()))
 	v.Set("level", a.NewNumberInt(gd.lvl))
 	for fk, fv := range gd.fld {
 		v.Set(fk, a.NewString(fv))

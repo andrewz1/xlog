@@ -14,9 +14,9 @@ func TestGelf(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	gd := getGelf(InfoLevel, noOp, "this is short message", nextSeq())
+	gd := getGelfData(InfoLevel, noOp, "this is short message", nextSeq(), nil)
 	if gd == nil {
-		t.Fatal("getGelf fail")
+		t.Fatal("getGelfData fail")
 	}
 	gd.setFullMsg("this is full message")
 	gd.addField("test1", "value1")

@@ -5,8 +5,8 @@ import (
 )
 
 func emsg2(lvl Level, op int, e *Entry, v ...interface{}) {
-	tb := bufGet()
-	defer bufPut(tb)
+	tb := getBuf()
+	defer putBuf(tb)
 	for _, x := range v {
 		tb.putAny(x)
 	}
@@ -14,8 +14,8 @@ func emsg2(lvl Level, op int, e *Entry, v ...interface{}) {
 }
 
 func emsgf2(lvl Level, op int, e *Entry, format string, v ...interface{}) {
-	tb := bufGet()
-	defer bufPut(tb)
+	tb := getBuf()
+	defer putBuf(tb)
 	fmt.Fprintf(tb, format, v...)
 	msg(lvl, op, tb.String(), e)
 }

@@ -36,8 +36,7 @@ var (
 		Duration: true,
 		lvl:      InfoLevel,
 	}
-	seq    atomic.Uint64
-	lastTS atomic.Int64
+	seq atomic.Uint64
 )
 
 func Init(xc *xtoml.XConf) (err error) {
@@ -50,18 +49,6 @@ func Init(xc *xtoml.XConf) (err error) {
 
 func nextSeq() uint64 {
 	return seq.Add(1)
-}
-
-func nextTS() (rv int64) {
-	rv = time.Now().UnixMilli()
-	defer lastTS.Store(rv)
-	for {
-		if lastTS.Load() != rv {
-			break
-		}
-		rv++
-	}
-	return rv
 }
 
 func logTag() string {
@@ -138,26 +125,25 @@ func msgStdErr(lvl Level, m string) {
 
 func msg(lvl Level, op int, m string, e *Entry) {
 	nseq := nextSeq()
-	bb := bufGet()
-	gd := getGelf(lvl, op, m, nseq)
+	bb := getBuf()
+	var curp *time.Time
+	if e != nil {
+		curp = &e.cur
+	}
+	gd := getGelfData(lvl, op, m, nseq, curp)
 	defer func() {
 		gd.send()
-		bufPut(bb)
+		putBuf(bb)
 	}()
 	bb.setStr(m)
-	var dur time.Duration
-	if opt.Duration && e != nil {
-		dur = time.Since(e.cur)
-		gd.setDuration(dur)
-	}
 	if e != nil {
 		for k, v := range e.gfld {
 			gd.addField(k, v)
 		}
 		bb.putStr(e.buf.String())
-	}
-	if opt.Duration && dur != 0 {
-		bb.putStr(fmt.Sprintf("duration=%v", dur))
+		if opt.Duration {
+			bb.putStr(fmt.Sprintf("duration=%v", time.Since(e.cur)))
+		}
 	}
 	bb.putStr(fmt.Sprintf("seq=%d", nseq))
 	s := bb.String()

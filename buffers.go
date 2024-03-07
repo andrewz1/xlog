@@ -16,18 +16,18 @@ type lbuf struct {
 }
 
 var (
-	lbp = sync.Pool{New: newBuf}
+	lbp = sync.Pool{New: newBufAny}
 )
 
-func newBuf() any {
+func newBufAny() any {
 	return &lbuf{buf: make([]byte, 0, defLen)}
 }
 
-func bufGet() *lbuf {
+func getBuf() *lbuf {
 	return lbp.Get().(*lbuf)
 }
 
-func bufPut(b *lbuf) {
+func putBuf(b *lbuf) {
 	b.reset()
 	lbp.Put(b)
 }

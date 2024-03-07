@@ -20,10 +20,10 @@ type Entry struct {
 }
 
 var (
-	ep = sync.Pool{New: newEntry}
+	ep = sync.Pool{New: newEntryAny}
 )
 
-func newEntry() any {
+func newEntryAny() any {
 	return &Entry{
 		fld:  make(map[string]any),
 		gfld: make(map[string]string),
@@ -33,28 +33,28 @@ func newEntry() any {
 func getEntry() *Entry {
 	e := ep.Get().(*Entry)
 	e.cur = time.Now()
-	e.buf = bufGet()
+	e.buf = getBuf()
 	return e
 }
 
 func putEntry(e *Entry) time.Duration {
 	rv := time.Since(e.cur)
 	e.reset()
-	bufPut(e.buf)
+	putBuf(e.buf)
 	ep.Put(e)
 	return rv
 }
 
 func (e *Entry) reset() { // reset entry for reuse
-	e.cur = time.Time{}
 	for k := range e.fld {
 		delete(e.fld, k)
 	}
 	for k := range e.gfld {
 		delete(e.gfld, k)
 	}
-	e.buf.reset()
+	e.cur = time.Time{}
 	e.sil.Store(false)
+	e.buf.reset()
 }
 
 func (e *Entry) Reset() { // reset entry for reuse
@@ -97,12 +97,14 @@ func (e *Entry) UnUsed() { // mark entry unused - print on put
 }
 
 func (e *Entry) Caller(name string) {
+	e.Lock()
+	defer e.Unlock()
 	e.AddField(entName, name)
 }
 
 func (e *Entry) toBuf(bb *lbuf) {
-	tb := bufGet()
-	defer bufPut(tb)
+	tb := getBuf()
+	defer putBuf(tb)
 	for k, v := range e.fld {
 		tb.setAny(v)
 		bb.putStr(tb.kvString(k))
@@ -114,15 +116,25 @@ func (e *Entry) rebuildBuf() {
 	e.toBuf(e.buf)
 }
 
-func (e *Entry) addField(k string, v any) {
-	tb := bufGet()
-	defer bufPut(tb)
-	_, rebuild := e.fld[k]
-	e.fld[k] = v
-	tb.setAny(v)
+func (e *Entry) addGelf(k string, tb *lbuf) {
 	if gelfOk() {
 		e.gfld[k] = tb.String()
 	}
+}
+
+func (e *Entry) delGelf(k string) {
+	if gelfOk() {
+		delete(e.gfld, k)
+	}
+}
+
+func (e *Entry) addField(k string, v any) {
+	tb := getBuf()
+	defer putBuf(tb)
+	_, rebuild := e.fld[k] // is field exists?
+	e.fld[k] = v
+	tb.setAny(v)
+	e.addGelf(k, tb)
 	if rebuild {
 		e.rebuildBuf()
 	} else {
@@ -141,9 +153,7 @@ func (e *Entry) delField(k string) {
 		return
 	}
 	delete(e.fld, k)
-	if gelfOk() {
-		delete(e.gfld, k)
-	}
+	e.delGelf(k)
 	e.rebuildBuf()
 }
 
