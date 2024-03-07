@@ -130,7 +130,7 @@ func msg(lvl Level, op int, m string, e *Entry) {
 	if e != nil {
 		curp = &e.cur
 	}
-	gd := getGelfData(lvl, op, m, nseq, curp)
+	gd := getGelfData(lvl, op, nseq, curp)
 	defer func() {
 		gd.send()
 		putBuf(bb)
@@ -147,7 +147,7 @@ func msg(lvl Level, op int, m string, e *Entry) {
 	}
 	bb.putStr(fmt.Sprintf("seq=%d", nseq))
 	s := bb.String()
-	gd.setFullMsg(s)
+	gd.setMsg(s)
 	if opt.log != nil {
 		msgSysLog(lvl, s)
 	} else {

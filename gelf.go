@@ -17,14 +17,13 @@ const (
 )
 
 type gelfData struct {
-	shortMsg string            // short gelf message
-	fullMsg  string            // full gelf message
-	fld      map[string]string // gelf fields with _ prefix
-	cur      time.Time         // creation time
-	dur      time.Duration     // duration
-	seq      uint64            // sequence number
-	lvl      int               // log level
-	op       int               // exit or panic operation
+	msg string            // gelf log message
+	fld map[string]string // gelf fields with _ prefix
+	cur time.Time         // creation time
+	dur time.Duration     // duration
+	seq uint64            // sequence number
+	lvl int               // log level
+	op  int               // exit or panic operation
 }
 
 var (
@@ -49,8 +48,7 @@ func newGelfDataAny() any {
 }
 
 func (gd *gelfData) reset() {
-	gd.shortMsg = ""
-	gd.fullMsg = ""
+	gd.msg = ""
 	for k := range gd.fld {
 		delete(gd.fld, k)
 	}
@@ -60,12 +58,11 @@ func gelfOk() bool {
 	return gSock != nil
 }
 
-func getGelfData(lvl Level, op int, short string, seq uint64, curp *time.Time) *gelfData {
+func getGelfData(lvl Level, op int, seq uint64, curp *time.Time) *gelfData {
 	if !gelfOk() {
 		return nil
 	}
 	gd := gp.Get().(*gelfData)
-	gd.shortMsg = short
 	gd.cur = time.Now()
 	if opt.Duration && curp != nil {
 		gd.dur = gd.cur.Sub(*curp)
@@ -92,9 +89,9 @@ func putGelfData(gd *gelfData) {
 	gp.Put(gd)
 }
 
-func (gd *gelfData) setFullMsg(m string) {
+func (gd *gelfData) setMsg(m string) {
 	if gd != nil {
-		gd.fullMsg = m
+		gd.msg = m
 	}
 }
 
@@ -141,7 +138,7 @@ func gchLog() {
 			os.Exit(1)
 		case opPanic:
 			time.Sleep(sendTmo) // for send
-			panic(v.shortMsg)
+			panic(v.msg)
 		}
 	}
 }
@@ -161,18 +158,7 @@ func (gd *gelfData) process() {
 	v := a.NewObject()
 	v.Set("version", a.NewString("1.1"))
 	v.Set("host", a.NewString(gHost))
-	if gd.shortMsg == "" {
-		if en, ok := gd.fld["_"+entName]; ok {
-			v.Set("short_message", a.NewString(fmt.Sprintf(entName+"=%s", en)))
-		} else {
-			v.Set("short_message", a.NewString(noDataMsg))
-		}
-	} else {
-		v.Set("short_message", a.NewString(gd.shortMsg))
-	}
-	if gd.fullMsg != "" {
-		v.Set("full_message", a.NewString(gd.fullMsg))
-	}
+	v.Set("short_message", a.NewString(gd.msg))
 	v.Set("timestamp", a.NewNumberString(gd.getTS()))
 	v.Set("level", a.NewNumberInt(gd.lvl))
 	for fk, fv := range gd.fld {
