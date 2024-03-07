@@ -168,5 +168,6 @@ func (gd *gelfData) process() {
 		v.Set("_duration", a.NewString(gd.dur.String()))
 	}
 	v.Set("_seq", a.NewNumberString(fmt.Sprintf("%d", gd.seq)))
+	v.Set("_service", a.NewString(opt.tag))
 	_, _ = gSock.Write(v.MarshalTo(bb.buf))
 }
