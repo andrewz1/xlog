@@ -18,11 +18,9 @@ const (
 )
 
 type Conf struct {
-	Level    string `conf:"log.level"`     // log level
-	SysLog   bool   `conf:"log.syslog"`    // use syslog
-	Duration bool   `conf:"log.duration"`  // log duration
-	GLogDst  string `conf:"log.gelf_dst"`  // gelf dst
-	GLogId   string `conf:"log.gelf_host"` // gelf data for host
+	Level    string `conf:"log.level"`    // log level
+	SysLog   bool   `conf:"log.syslog"`   // use syslog
+	Duration bool   `conf:"log.duration"` // log duration
 
 	lvl Level
 	tag string
@@ -58,17 +56,6 @@ func logTag() string {
 	return os.Args[0]
 }
 
-func logHost() string {
-	h, err := os.Hostname()
-	if err != nil {
-		return "unknown"
-	}
-	if n := strings.IndexByte(h, '.'); n > 1 {
-		return h[:n-1]
-	}
-	return h
-}
-
 func (c *Conf) baseInit() {
 	var err error
 	if c.lvl, err = parseLevel(c.Level); err != nil {
@@ -76,18 +63,10 @@ func (c *Conf) baseInit() {
 	}
 	c.tag = logTag()
 	if c.SysLog {
-		c.log, err = syslog.New(syslog.Priority(c.lvl), c.tag)
+		c.log, err = syslog.New(syslog.Priority(c.lvl)|syslog.LOG_DAEMON, c.tag)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "use stderr, syslog open err: %v\n", err)
 			c.log = nil
-		}
-	}
-	if c.GLogId == "" {
-		c.GLogId = fmt.Sprintf("%s[%s]", logHost(), c.tag)
-	}
-	if c.GLogDst != "" {
-		if err = gelfInit(c.GLogId, c.GLogDst); err != nil {
-			fmt.Fprintf(os.Stderr, "gelf disabled, err: %v\n", err)
 		}
 	}
 }
@@ -126,20 +105,9 @@ func msgStdErr(lvl Level, m string) {
 func msg(lvl Level, op int, m string, e *Entry) {
 	nseq := nextSeq()
 	bb := getBuf()
-	var curp *time.Time
-	if e != nil {
-		curp = &e.cur
-	}
-	gd := getGelfData(lvl, op, nseq, curp)
-	defer func() {
-		gd.send()
-		putBuf(bb)
-	}()
+	defer putBuf(bb)
 	bb.setStr(m)
 	if e != nil {
-		for k, v := range e.gfld {
-			gd.addField(k, v)
-		}
 		bb.putStr(e.buf.String())
 		if opt.Duration {
 			bb.putStr(fmt.Sprintf("duration=%v", time.Since(e.cur)))
@@ -147,14 +115,10 @@ func msg(lvl Level, op int, m string, e *Entry) {
 	}
 	bb.putStr(fmt.Sprintf("seq=%d", nseq))
 	s := bb.String()
-	gd.setMsg(s)
 	if opt.log != nil {
 		msgSysLog(lvl, s)
 	} else {
 		msgStdErr(lvl, s)
-	}
-	if gelfOk() {
-		return
 	}
 	switch op {
 	case opFatal:

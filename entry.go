@@ -116,25 +116,12 @@ func (e *Entry) rebuildBuf() {
 	e.toBuf(e.buf)
 }
 
-func (e *Entry) addGelf(k string, tb *lbuf) {
-	if gelfOk() {
-		e.gfld[k] = tb.String()
-	}
-}
-
-func (e *Entry) delGelf(k string) {
-	if gelfOk() {
-		delete(e.gfld, k)
-	}
-}
-
 func (e *Entry) addField(k string, v any) {
 	tb := getBuf()
 	defer putBuf(tb)
 	_, rebuild := e.fld[k] // is field exists?
 	e.fld[k] = v
 	tb.setAny(v)
-	e.addGelf(k, tb)
 	if rebuild {
 		e.rebuildBuf()
 	} else {
@@ -153,7 +140,6 @@ func (e *Entry) delField(k string) {
 		return
 	}
 	delete(e.fld, k)
-	e.delGelf(k)
 	e.rebuildBuf()
 }
 
