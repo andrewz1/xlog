@@ -29,8 +29,8 @@ type Conf struct {
 
 var (
 	opt = &Conf{
-		Level:    "info",
-		SysLog:   true,
+		Level: "info",
+		//SysLog:   true,
 		Duration: true,
 		lvl:      InfoLevel,
 	}
@@ -43,6 +43,11 @@ func Init(xc *xtoml.XConf) (err error) {
 	}
 	opt.baseInit()
 	return nil
+}
+
+func Init2(xc *xtoml.XConf, sysLog bool) error {
+	opt.SysLog = sysLog
+	return Init(xc)
 }
 
 func nextSeq() uint64 {
